@@ -1,0 +1,13 @@
+{
+  "name": "spfx-codebuild-trigger-lambda",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "dependencies": {
+    "@aws-sdk/client-codebuild": "^3.876.0",
+    "@aws-sdk/client-s3": "^3.876.0",
+    "@aws-sdk/s3-request-presigner": "^3.876.0",
+    "busboy": "^1.6.0"
+  }
+}
+
