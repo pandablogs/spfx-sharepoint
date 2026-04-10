@@ -1,8 +1,5 @@
 version: 0.2
 
-env:
-  shell: bash
-
 phases:
   install:
     runtime-versions:
@@ -16,14 +13,11 @@ phases:
       - echo "Downloading form.html from S3"
       - aws s3 cp "s3://$S3_BUCKET/$BUILD_PREFIX/form.html" "public/form.html"
       - echo "Creating .env file"
-      - |-
-          cat > .env <<'EOF'
-          LIST_URL=$LIST_URL
-          SPFX_PAGE_URL=$SPFX_PAGE_URL
-          COLUMNS=$COLUMNS
-          HTML_PATH=./public/form.html
-          NODE_ENV=production
-          EOF
+      - printf "LIST_URL=%s\n" "$LIST_URL" > .env
+      - printf "SPFX_PAGE_URL=%s\n" "$SPFX_PAGE_URL" >> .env
+      - printf "COLUMNS=%s\n" "$COLUMNS" >> .env
+      - printf "HTML_PATH=%s\n" "./public/form.html" >> .env
+      - printf "NODE_ENV=%s\n" "production" >> .env
       - echo "Injecting dynamic config"
       - node ./scripts/sync-serve-config.js
       - node ./scripts/generate-form-schema.js
