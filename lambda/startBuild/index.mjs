@@ -16,7 +16,6 @@ const {
   CODEBUILD_PROJECT_NAME = "",
   OUTPUT_SPPKG_NAME = "custom-new-item.sppkg",
   PRESIGNED_URL_EXPIRES_SECONDS = "3600",
-  MAX_WAIT_SECONDS = "720",
 } = process.env;
 
 function json(statusCode, body) {
@@ -77,36 +76,6 @@ async function parseMultipart(event) {
     fileBuffer: file.buffer,
     fileContentType: file.contentType || "text/html",
   };
-}
-
-async function sleep(ms) {
-  await new Promise((r) => setTimeout(r, ms));
-}
-
-async function waitForBuild(codeBuildId, maxWaitSeconds) {
-  const started = Date.now();
-  while (true) {
-    const batch = await codebuild.send(
-      new BatchGetBuildsCommand({ ids: [codeBuildId] })
-    );
-    const build = batch.builds?.[0];
-    const status = build?.buildStatus;
-    if (!status) return { status: "UNKNOWN" };
-
-    if (
-      status === "SUCCEEDED" ||
-      status === "FAILED" ||
-      status === "FAULT" ||
-      status === "STOPPED" ||
-      status === "TIMED_OUT"
-    ) {
-      return { status, build };
-    }
-
-    const elapsed = (Date.now() - started) / 1000;
-    if (elapsed >= maxWaitSeconds) return { status: "IN_PROGRESS", build };
-    await sleep(5000);
-  }
 }
 
 export const handler = async (event) => {
@@ -179,31 +148,14 @@ export const handler = async (event) => {
     const codeBuildId = startOut.build?.id;
     if (!codeBuildId) return json(502, { error: "CodeBuild did not return build id" });
 
-    const waited = await waitForBuild(codeBuildId, Math.max(0, Number(MAX_WAIT_SECONDS || "0")));
-    if (waited.status !== "SUCCEEDED") {
-      return json(waited.status === "IN_PROGRESS" ? 202 : 200, {
-        status: waited.status,
-        codeBuildId,
-        buildPrefix,
-        outputS3Key: outKey,
-        message: waited.build?.statusReason || waited.status,
-      });
-    }
-
-    const expiresIn = Math.max(60, Number(PRESIGNED_URL_EXPIRES_SECONDS || "3600"));
-    const downloadUrl = await getSignedUrl(
-      s3,
-      new GetObjectCommand({ Bucket: S3_BUCKET, Key: outKey }),
-      { expiresIn }
-    );
-
-    return json(200, {
-      status: "SUCCEEDED",
+    // Return immediately; client should call GET /status with codeBuildId+buildPrefix.
+    return json(202, {
+      status: "IN_PROGRESS",
       codeBuildId,
       buildPrefix,
-      sppkgS3Key: outKey,
-      downloadUrl,
-      expiresInSeconds: expiresIn,
+      outputS3Key: outKey,
+      outputSppkgName: outputName,
+      message: "Build started. Poll status endpoint until SUCCEEDED for downloadUrl.",
     });
   } catch (e) {
     return json(500, {
