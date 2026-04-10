@@ -1,0 +1,11 @@
+{
+  "commandBarProps": {
+    "commands": [
+      {
+        "key": "new",
+        "hide": true
+      }
+    ]
+  }
+}
+

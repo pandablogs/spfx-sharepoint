@@ -1,0 +1,55 @@
+# AWS CodeBuild - SPFx ship build for this repo (existing solution; no scaffolding).
+#
+# StartBuild environmentVariablesOverride must provide:
+#   LIST_URL, SPFX_PAGE_URL, COLUMNS, S3_BUCKET, BUILD_PREFIX, OUTPUT_SPPKG_NAME
+#
+# IAM (CodeBuild role): s3:GetObject + s3:PutObject for s3://$S3_BUCKET/$BUILD_PREFIX/*
+version: 0.2
+
+env:
+  shell: bash
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 18
+    commands:
+      - echo "Node version: $(node -v)"
+      - npm ci --legacy-peer-deps
+
+  pre_build:
+    commands:
+      - echo "Downloading form.html from S3"
+      - aws s3 cp "s3://$S3_BUCKET/$BUILD_PREFIX/form.html" ./public/form.html
+
+      - echo "Creating .env file"
+      - |
+        cat > .env <<EOF
+        LIST_URL=$LIST_URL
+        SPFX_PAGE_URL=$SPFX_PAGE_URL
+        COLUMNS=$COLUMNS
+        HTML_PATH=./public/form.html
+        NODE_ENV=production
+        EOF
+
+      - echo "Injecting dynamic config"
+      - node ./scripts/sync-serve-config.js
+      - node ./scripts/generate-form-schema.js
+
+  build:
+    commands:
+      - echo "Building SPFx package"
+      - export NODE_OPTIONS=--max_old_space_size=4096
+      - npx gulp clean
+      - npx gulp bundle --ship
+      - npx gulp package-solution --ship
+
+  post_build:
+    commands:
+      - echo "Verifying output"
+      - test -f "sharepoint/solution/$OUTPUT_SPPKG_NAME"
+
+      - echo "Uploading .sppkg to S3"
+      - aws s3 cp "sharepoint/solution/$OUTPUT_SPPKG_NAME" "s3://$S3_BUCKET/$BUILD_PREFIX/output/$OUTPUT_SPPKG_NAME"
+      - echo "Build completed successfully"
+

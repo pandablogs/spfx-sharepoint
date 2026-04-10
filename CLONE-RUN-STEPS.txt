@@ -1,0 +1,52 @@
+SPFX Project - Clone and Run Steps
+==================================
+
+Prerequisites (Required Dependencies)
+-------------------------------------
+- Node.js: v18.x (MUST)
+  - Required by project: >=18.17.1 <19.0.0
+  - Global install: YES (install Node on system)
+
+- npm: comes with Node.js
+  - Recommended: npm 9.x or npm 10.x
+  - Global install: NO extra install needed (with Node)
+
+- Gulp CLI (for direct `gulp` command only)
+  - Package: gulp-cli
+  - Recommended version: latest
+  - Global install: OPTIONAL
+  - Command (optional): npm install -g gulp-cli
+  - Note: for this project, `npm run serve` is enough (global gulp not required)
+
+- Git (to clone repository)
+  - Version: latest stable
+  - Global install: YES (install Git on system)
+
+1) Clone repository
+   git clone <your-repo-url>
+   cd <your-project-folder>
+
+2) Install dependencies
+   npm install
+
+3) Create local env file
+   PowerShell:
+   Copy-Item .env.example .env
+
+   CMD:
+   copy .env.example .env
+
+4) Update .env values
+   Set at least one of these:
+   - SPFX_PAGE_URL=https://your-tenant.sharepoint.com/sites/your-site/Lists/Products/AllItems.aspx
+   - LIST_URL=https://your-tenant.sharepoint.com/sites/your-site/Lists/Products/AllItems.aspx
+
+5) Run project
+   npm run serve
+
+Notes
+-----
+- `npm run serve` automatically:
+  - Generates dynamic form schema from `public/form.html`
+  - Updates `config/serve.json` pageUrl from `.env`
+  - Starts SPFx local serve
