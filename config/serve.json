@@ -4,7 +4,7 @@
   "https": true,
   "serveConfigurations": {
     "default": {
-      "pageUrl": "https://sysmethod.sharepoint.com/sites/dev/Lists/Products/AllItems.aspx",
+      "pageUrl": "https://kkganglozic.sharepoint.com/Lists/Product/AllItems.aspx",
       "customActions": {
         "b034ff07-d400-40d1-882b-4de44506d831": {
           "location": "ClientSideExtension.ListViewCommandSet.CommandBar"

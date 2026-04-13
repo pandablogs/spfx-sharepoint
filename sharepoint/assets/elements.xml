@@ -1,15 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?>
 <Elements xmlns="http://schemas.microsoft.com/sharepoint/">
-
   <CustomAction
     Title="CustomNewItem"
-    RegistrationId="101"
     RegistrationType="List"
+    RegistrationId="100"
     Location="ClientSideExtension.ListViewCommandSet.CommandBar"
-    Sequence="1"
     ClientSideComponentId="b034ff07-d400-40d1-882b-4de44506d831"
     ClientSideComponentProperties="{}">
-
   </CustomAction>
-
 </Elements>
