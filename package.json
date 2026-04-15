@@ -7,17 +7,11 @@
   },
   "main": "lib/index.js",
   "scripts": {
-    "prebuild": "npm run prepare:form && npm run prepare:serve",
     "build": "gulp bundle",
-    "prebundle": "npm run prepare:form && npm run prepare:serve",
     "bundle": "gulp bundle",
     "clean": "gulp clean",
     "test": "gulp test",
-    "prepare:form": "node ./scripts/generate-form-schema.js",
-    "prepare:serve": "node ./scripts/sync-serve-config.js",
-    "preserve": "npm run prepare:form && npm run prepare:serve",
     "serve": "gulp serve",
-    "preserve:nobrowser": "npm run prepare:form && npm run prepare:serve",
     "serve:nobrowser": "gulp serve --nobrowser",
     "start:api": "node ./api/server.js",
     "start:ui": "npm run dev --prefix ui"

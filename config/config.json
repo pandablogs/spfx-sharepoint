@@ -9,10 +9,19 @@
           "manifest": "./src/extensions/customNewItem/CustomNewItemCommandSet.manifest.json"
         }
       ]
+    },
+    "external-form-bridge-form-customizer": {
+      "components": [
+        {
+          "entrypoint": "./lib/extensions/externalFormBridge/ExternalFormBridgeFormCustomizer.js",
+          "manifest": "./src/extensions/externalFormBridge/ExternalFormBridgeFormCustomizer.manifest.json"
+        }
+      ]
     }
   },
   "externals": {},
   "localizedResources": {
-    "CustomNewItemCommandSetStrings": "lib/extensions/customNewItem/loc/{locale}.js"
+    "CustomNewItemCommandSetStrings": "lib/extensions/customNewItem/loc/{locale}.js",
+    "ExternalFormBridgeFormCustomizerStrings": "lib/extensions/externalFormBridge/loc/{locale}.js"
   }
 }
