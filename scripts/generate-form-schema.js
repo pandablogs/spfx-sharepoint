@@ -3,6 +3,24 @@
 const fs = require('fs');
 const path = require('path');
 
+function parseArgs(argv) {
+  const out = {};
+  for (let i = 2; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--input' || a === '-i') {
+      out.input = argv[i + 1];
+      i++;
+      continue;
+    }
+    if (a === '--meta') {
+      out.meta = argv[i + 1];
+      i++;
+      continue;
+    }
+  }
+  return out;
+}
+
 function extractSourceSchema(html) {
   const schemaMatch = html.match(/const\s+sourceSchema\s*=\s*(\{[\s\S]*?\});/);
   if (!schemaMatch || !schemaMatch[1]) {
@@ -29,6 +47,16 @@ function extractInlineCss(html) {
     }
   }
   return cssParts.join('\n\n');
+}
+
+function safeReadJson(filePath) {
+  if (!filePath) return undefined;
+  if (!fs.existsSync(filePath)) return undefined;
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch (e) {
+    return undefined;
+  }
 }
 
 function collectInputFields(components, output) {
@@ -81,18 +109,39 @@ function collectInputFields(components, output) {
 }
 
 function main() {
+  const args = parseArgs(process.argv);
   const rootDir = path.resolve(__dirname, '..');
-  const sourcePath = path.join(rootDir, 'public', 'form.html');
   const outputPath = path.join(rootDir, 'src', 'extensions', 'customNewItem', 'generatedFormSchema.ts');
 
-  if (!fs.existsSync(sourcePath)) {
-    throw new Error('public/form.html not found');
+  const metaPath = args.meta ? path.resolve(process.cwd(), args.meta) : path.join(rootDir, 'public', 'form-meta.json');
+  const meta = safeReadJson(metaPath) || {};
+
+  const inputPath = args.input
+    ? path.resolve(process.cwd(), args.input)
+    : path.join(rootDir, 'public', 'formio.json');
+
+  let sourceSchema;
+  let formTitle = typeof meta.formTitle === 'string' ? meta.formTitle : undefined;
+  let formCss = typeof meta.formCss === 'string' ? meta.formCss : undefined;
+
+  if (fs.existsSync(inputPath) && inputPath.toLowerCase().endsWith('.json')) {
+    sourceSchema = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
+    if (!formTitle && sourceSchema && typeof sourceSchema.title === 'string') {
+      formTitle = sourceSchema.title;
+    }
+  } else {
+    const sourcePath = path.join(rootDir, 'public', 'form.html');
+    if (!fs.existsSync(sourcePath)) {
+      throw new Error('No JSON input and public/form.html not found');
+    }
+    const html = fs.readFileSync(sourcePath, 'utf8');
+    sourceSchema = extractSourceSchema(html);
+    if (!formTitle) formTitle = extractFormTitle(html);
+    if (!formCss) formCss = extractInlineCss(html);
   }
 
-  const html = fs.readFileSync(sourcePath, 'utf8');
-  const sourceSchema = extractSourceSchema(html);
-  const formTitle = extractFormTitle(html);
-  const formCss = extractInlineCss(html);
+  if (!formTitle) formTitle = 'External Form';
+  if (!formCss) formCss = '';
 
   const fields = [];
   collectInputFields(sourceSchema.components || [], fields);

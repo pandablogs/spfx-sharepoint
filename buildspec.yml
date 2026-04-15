@@ -11,19 +11,13 @@ phases:
 
   pre_build:
     commands:
-      - echo "Downloading form.html from S3"
-      - aws s3 cp s3://$S3_BUCKET/$BUILD_PREFIX/form.html public/form.html
-
-      - echo "Creating .env file"
-      - echo "LIST_URL=$LIST_URL" > .env
-      - echo "SPFX_PAGE_URL=$SPFX_PAGE_URL" >> .env
-      - echo "COLUMNS=$COLUMNS" >> .env
-      - echo "HTML_PATH=./public/form.html" >> .env
-      - echo "NODE_ENV=production" >> .env
-
-      - echo "Injecting dynamic config"
-      - node ./scripts/sync-serve-config.js
-      - node ./scripts/generate-form-schema.js
+      - echo "Downloading build input from S3"
+      - test -n "$BUILD_INPUT_S3_KEY"
+      - aws s3 cp "s3://$S3_BUCKET/$BUILD_INPUT_S3_KEY" build-input.json
+      - echo "Applying listGuid + Form.io schema"
+      - node scripts/apply-build-inputs.js --input build-input.json
+      - echo "Generating SPFx schema bindings"
+      - node scripts/generate-form-schema.js --input public/formio.json --meta public/form-meta.json
 
   build:
     commands:

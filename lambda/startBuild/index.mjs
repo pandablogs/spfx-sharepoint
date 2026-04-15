@@ -1,12 +1,9 @@
 import crypto from "crypto";
-import Busboy from "busboy";
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import {
   CodeBuildClient,
   StartBuildCommand,
-  BatchGetBuildsCommand,
 } from "@aws-sdk/client-codebuild";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const s3 = new S3Client({});
 const codebuild = new CodeBuildClient({});
@@ -31,50 +28,30 @@ function json(statusCode, body) {
   };
 }
 
-async function parseMultipart(event) {
-  const headers = event.headers || {};
-  const contentType = headers["content-type"] || headers["Content-Type"] || "";
-  const rawBody =
+function parseJson(event) {
+  const raw =
     typeof event.body === "string"
-      ? Buffer.from(event.body, event.isBase64Encoded ? "base64" : "utf8")
-      : Buffer.from("");
+      ? Buffer.from(event.body, event.isBase64Encoded ? "base64" : "utf8").toString("utf8")
+      : "{}";
 
-  const fields = {};
-  /** @type {{ buffer?: Buffer, contentType?: string }} */
-  const file = {};
+  let body;
+  try {
+    body = JSON.parse(raw || "{}");
+  } catch (e) {
+    throw new Error("Invalid JSON body");
+  }
 
-  await new Promise((resolve, reject) => {
-    const bb = Busboy({ headers: { "content-type": contentType } });
-
-    bb.on("field", (name, value) => {
-      fields[name] = value;
-    });
-
-    bb.on("file", (name, stream, info) => {
-      if (name !== "formHtml") {
-        stream.resume();
-        return;
-      }
-      file.contentType = info?.mimeType || "text/html";
-      const chunks = [];
-      stream.on("data", (d) => chunks.push(d));
-      stream.on("end", () => {
-        file.buffer = Buffer.concat(chunks);
-      });
-    });
-
-    bb.on("error", reject);
-    bb.on("finish", resolve);
-    bb.end(rawBody);
-  });
+  // Allow posting the Form.io schema directly as the body:
+  // - body.display + body.components => treat body as the schema
+  const looksLikeFormio =
+    body && typeof body === "object" && typeof body.display === "string" && Array.isArray(body.components);
 
   return {
-    listUrl: String(fields.listUrl || fields.LIST_URL || "").trim(),
-    spfxPageUrl: String(fields.spfxPageUrl || fields.SPFX_PAGE_URL || "").trim(),
-    columns: String(fields.columns || fields.COLUMNS || "").trim(),
-    outputSppkgName: String(fields.outputSppkgName || fields.OUTPUT_SPPKG_NAME || "").trim(),
-    fileBuffer: file.buffer,
-    fileContentType: file.contentType || "text/html",
+    outputSppkgName: String(body.outputSppkgName || body.OUTPUT_SPPKG_NAME || "").trim(),
+    listGuid: String(body.listGuid || body.listGUID || body.listId || "").trim(),
+    formio: looksLikeFormio ? body : (body.formio || body.formioSchema || body.schema || body.form || undefined),
+    formTitle: typeof body.formTitle === "string" ? body.formTitle : undefined,
+    formCss: typeof body.formCss === "string" ? body.formCss : undefined,
   };
 }
 
@@ -97,37 +74,38 @@ export const handler = async (event) => {
     if (!S3_BUCKET) return json(500, { error: "Missing env: S3_BUCKET" });
     if (!CODEBUILD_PROJECT_NAME) return json(500, { error: "Missing env: CODEBUILD_PROJECT_NAME" });
 
-    const headers = event.headers || {};
-    const contentType = String(headers["content-type"] || headers["Content-Type"] || "").toLowerCase();
-    if (!contentType.startsWith("multipart/form-data")) {
-      return json(400, {
-        error: "Send multipart/form-data with file field name 'formHtml'.",
-        receivedContentType: contentType || null,
-      });
-    }
-
     let req;
     try {
-      req = await parseMultipart(event);
+      req = parseJson(event);
     } catch (e) {
       return json(400, { error: e?.message || String(e) });
     }
 
-    if (!req.listUrl) return json(400, { error: "LIST_URL (listUrl) required" });
-    if (!req.spfxPageUrl) return json(400, { error: "SPFX_PAGE_URL (spfxPageUrl) required" });
-    if (!req.fileBuffer || req.fileBuffer.length === 0) return json(400, { error: "formHtml file required" });
+    if (!req.listGuid) return json(400, { error: "Missing required field: listGuid" });
+    if (!req.formio || typeof req.formio !== "object") {
+      return json(400, { error: "Missing required field: formio (Form.io JSON object)" });
+    }
 
     const buildPrefix = `builds/${crypto.randomUUID()}`;
     const outputName = (req.outputSppkgName || OUTPUT_SPPKG_NAME).trim();
-    const formKey = `${buildPrefix}/form.html`;
     const outKey = `${buildPrefix}/output/${outputName}`;
+
+    const inputKey = `${buildPrefix}/input/build-input.json`;
+    const buildInput = {
+      version: 1,
+      listGuid: req.listGuid,
+      formio: req.formio,
+      formTitle: req.formTitle,
+      formCss: req.formCss,
+      outputSppkgName: outputName,
+    };
 
     await s3.send(
       new PutObjectCommand({
         Bucket: S3_BUCKET,
-        Key: formKey,
-        Body: req.fileBuffer,
-        ContentType: req.fileContentType || "text/html",
+        Key: inputKey,
+        Body: JSON.stringify(buildInput),
+        ContentType: "application/json",
       })
     );
 
@@ -135,12 +113,11 @@ export const handler = async (event) => {
       new StartBuildCommand({
         projectName: CODEBUILD_PROJECT_NAME,
         environmentVariablesOverride: [
-          { name: "LIST_URL", value: req.listUrl, type: "PLAINTEXT" },
-          { name: "SPFX_PAGE_URL", value: req.spfxPageUrl, type: "PLAINTEXT" },
-          { name: "COLUMNS", value: req.columns || " ", type: "PLAINTEXT" },
           { name: "S3_BUCKET", value: S3_BUCKET, type: "PLAINTEXT" },
           { name: "BUILD_PREFIX", value: buildPrefix, type: "PLAINTEXT" },
           { name: "OUTPUT_SPPKG_NAME", value: outputName, type: "PLAINTEXT" },
+          { name: "BUILD_INPUT_S3_KEY", value: inputKey, type: "PLAINTEXT" },
+          { name: "LIST_GUID", value: req.listGuid, type: "PLAINTEXT" },
         ],
       })
     );
