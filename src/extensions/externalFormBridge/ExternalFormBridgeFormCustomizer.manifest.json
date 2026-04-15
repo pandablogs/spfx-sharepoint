@@ -1,0 +1,19 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx/form-customizer-extension-manifest.schema.json",
+  "id": "f6d6f7bb-9caa-4ed5-9a0a-7f8b1c2a4f6a",
+  "alias": "ExternalFormBridgeFormCustomizer",
+  "componentType": "Extension",
+  "extensionType": "FormCustomizer",
+  "version": "*",
+  "manifestVersion": 2,
+  "requiresCustomScript": false,
+  "supportedHosts": [
+    "SharePointWebPart"
+  ],
+  "properties": {
+    "schemaEndpoint": "https://example.com/api/sp-forms/schema",
+    "aadAppIdUri": "",
+    "formId": ""
+  }
+}
+

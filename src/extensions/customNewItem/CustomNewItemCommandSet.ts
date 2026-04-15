@@ -12,13 +12,22 @@ export interface ICustomNewItemCommandSetProperties { }
 export default class CustomNewItemCommandSet
   extends BaseListViewCommandSet<ICustomNewItemCommandSetProperties> {
 
+  private _isAllowedList(): boolean {
+    const allowed = String((this.properties as unknown as { listGuid?: string })?.listGuid ?? '').trim().toLowerCase();
+    if (!allowed) return true; // if not configured, behave as before
+
+    const current = this.context.pageContext.list?.id?.toString()?.trim().toLowerCase() ?? '';
+    const normalize = (v: string) => v.replace(/^\{/, '').replace(/\}$/, '');
+    return normalize(current) === normalize(allowed);
+  }
+
   @override
   public onInit(): Promise<void> {
     console.log("✅ CustomNewItemCommandSet initialized");
 
     const command = this.tryGetCommand('COMMAND_1');
     if (command) {
-      command.visible = true;
+      command.visible = this._isAllowedList();
     }
 
     const editCommand = this.tryGetCommand('COMMAND_2');
@@ -31,6 +40,14 @@ export default class CustomNewItemCommandSet
 
   @override
   public onListViewUpdated(event: IListViewCommandSetListViewUpdatedParameters): void {
+    if (!this._isAllowedList()) {
+      const c1 = this.tryGetCommand('COMMAND_1');
+      if (c1) c1.visible = false;
+      const c2 = this.tryGetCommand('COMMAND_2');
+      if (c2) c2.visible = false;
+      return;
+    }
+
     const editCommand = this.tryGetCommand('COMMAND_2');
     if (editCommand) {
       const selectedCount = event?.selectedRows?.length ?? 0;
