@@ -35,7 +35,10 @@ function main() {
   const serveConfigPath = path.join(rootDir, 'config', 'serve.json');
 
   if (!fs.existsSync(envPath)) {
-    throw new Error('.env file not found. Create it from .env.example first.');
+    // Enterprise bridge approach doesn't require per-build env injection.
+    // If no .env exists, keep serve.json as-is (developer can edit pageUrl directly).
+    console.log('No .env found. Leaving config/serve.json unchanged.');
+    return;
   }
 
   const envContent = fs.readFileSync(envPath, 'utf8');

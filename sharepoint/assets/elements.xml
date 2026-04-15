@@ -2,9 +2,9 @@
   <CustomAction
     Title="CustomNewItem"
     RegistrationType="List"
-    RegistrationId="100"
+    RegistrationId="{LIST_GUID}"
     Location="ClientSideExtension.ListViewCommandSet.CommandBar"
     ClientSideComponentId="b034ff07-d400-40d1-882b-4de44506d831"
-    ClientSideComponentProperties="{}">
+    ClientSideComponentProperties="{&quot;listGuid&quot;:&quot;{LIST_GUID}&quot;}">
   </CustomAction>
 </Elements>
