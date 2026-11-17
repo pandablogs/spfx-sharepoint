@@ -7,14 +7,14 @@
   },
   "main": "lib/index.js",
   "scripts": {
-    "build": "node init && gulp bundle",
+    "build": "gulp bundle",
     "bundle": "gulp bundle",
     "clean": "gulp clean",
     "test": "gulp test",
     "serve": "gulp serve",
     "serve:nobrowser": "gulp serve --nobrowser",
-    "start:api": "node init && node ./api/server.js",
-    "start:ui": "node init && npm run dev --prefix ui"
+    "start:api": "node ./api/server.js",
+    "start:ui": "npm run dev --prefix ui"
   },
   "dependencies": {
     "@aws-sdk/client-codebuild": "^3.876.0",
